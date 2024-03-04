@@ -1,0 +1,51 @@
+= myquota
+
+This project contains the `myquota` command line tool that is used to simple the process of managing the resource quotas under the account. 
+
+== Global environment variables
+To use the tool, two environment variables are required. 
+
+`OCM_ENV`: The default value is `stage` which is point to https://api.stage.openshift.com. `prod` is https://api.openshift.com.
+
+`SUPER_ADMIN_USER_TOKEN`: The offline token which can be get from https://cloud.redhat.com/openshift/token.
+
+Besides, the variable `export OCM_Debug_Mode=true` will open the ocm logs.
+
+== Installation
+To install the tool run this command:
+
+....
+$ go install gitlab.cee.redhat.com/openshift-group-I/myquota/cmd/myquota@latest 
+....
+
+
+== List quota
+List quota will formatly print out the usage of the quotas.
+
+To list the usage of the quota.
+....
+$ myquota list -u sdqe-quota MCT3326
+....
+
+To list the usage of all the quotas under the account.
+....
+$ myquota list -u sdqe-quota
+....
+
+
+== Assign quota
+It will check whether the quota exists. If exists, will update the quota to the value specified by the option `--number`; if not exists, will create a new quota with the value specified by the option `--number`. If the option `--number` is not set, the default value is `0`.
+
+To assign a quota to the account.
+....
+$ myquota assign -u sdqe-quota -n 5 MW00523
+....
+
+
+== Delete quota
+It will check wehther the quota is used. if used, and if the option `--force` is not set, will stop deletion with warning message.
+
+To delete a quota under the account.
+....
+$ myquota remove -u sdqe-quota MW00523
+....
