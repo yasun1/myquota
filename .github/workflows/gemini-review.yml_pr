@@ -1,0 +1,48 @@
+name: Gemini Code Review
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  gemini-review:
+    if: contains(github.event.comment.body, '@gemini')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Extract comment content
+        id: extract
+        run: |
+          echo "COMMENT_BODY<<EOF" >> $GITHUB_ENV
+          echo "${{ github.event.comment.body }}" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Send comment to Gemini
+        id: gemini
+        run: |
+          COMMENT="${{ github.event.comment.body }}"
+          RESPONSE=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${{ secrets.GEMINI_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"contents\": [{\"parts\": [{\"text\": \"You are reviewing code in a GitHub PR. The user wrote: ${COMMENT}\"}]}]
+            }" | jq -r '.candidates[0].content.parts[0].text')
+          echo "Gemini response: $RESPONSE"
+          echo "RESPONSE=$RESPONSE" >> $GITHUB_ENV
+
+      - name: Post response as comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            🤖 **Gemini Review Bot**
+            ---
+            ${{ env.RESPONSE }}
+

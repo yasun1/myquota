@@ -1,4 +1,4 @@
-name: Gemini Assistant
+name: Gemini Code Review
 
 on:
   issue_comment:
@@ -7,42 +7,55 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: write
 
 jobs:
-  gemini-assistant:
+  gemini-review:
     if: contains(github.event.comment.body, '@gemini')
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out code
+      - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Extract comment content
-        id: extract
+      - name: Debug info
         run: |
-          echo "COMMENT_BODY<<EOF" >> $GITHUB_ENV
-          echo "${{ github.event.comment.body }}" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          echo "Triggered by comment: ${{ github.event.comment.body }}"
 
-      - name: Ask Gemini
+      - name: Send comment to Gemini
         id: gemini
         run: |
           COMMENT="${{ github.event.comment.body }}"
-          echo "User said: $COMMENT"
-          RESPONSE=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${{ secrets.GEMINI_API_KEY }}" \
+          echo "Sending to Gemini API..."
+
+          RESPONSE_JSON=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${{ secrets.GEMINI_API_KEY }}" \
             -H "Content-Type: application/json" \
             -d "{
-              \"contents\": [{\"parts\": [{\"text\": \"你是一个智能代码助手。请针对以下评论进行回答或代码分析：${COMMENT}\"}]}]
-            }" | jq -r '.candidates[0].content.parts[0].text')
-          echo "Gemini response: $RESPONSE"
+              \"contents\": [
+                {
+                  \"role\": \"user\",
+                  \"parts\": [{\"text\": \"You are a code review assistant. Analyze this request: ${COMMENT}\"}]
+                }
+              ]
+            }")
+
+          echo "Full JSON response:"
+          echo "$RESPONSE_JSON"
+
+          RESPONSE=$(echo "$RESPONSE_JSON" | jq -r '.candidates[0].content.parts[]?.text' | tr '\n' ' ')
+
+          if [ -z "$RESPONSE" ] || [ "$RESPONSE" = "null" ]; then
+            RESPONSE="⚠️ Gemini did not return a valid response. Check your API key or input format."
+          fi
+
           echo "RESPONSE=$RESPONSE" >> $GITHUB_ENV
 
-      - name: Reply with Gemini answer
+      - name: Post response as comment
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.issue.number }}
           body: |
-            🤖 **Gemini 智能助手回复：**
+            🤖 **Gemini Review Bot**
             ---
             ${{ env.RESPONSE }}
 
