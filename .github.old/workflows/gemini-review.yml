@@ -1,0 +1,61 @@
+name: Gemini Code Review
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  gemini-review:
+    if: contains(github.event.comment.body, '@gemini')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Debug info
+        run: |
+          echo "Triggered by comment: ${{ github.event.comment.body }}"
+
+      - name: Send comment to Gemini
+        id: gemini
+        run: |
+          COMMENT="${{ github.event.comment.body }}"
+          echo "Sending to Gemini API..."
+
+          RESPONSE_JSON=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${{ secrets.GEMINI_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"contents\": [
+                {
+                  \"role\": \"user\",
+                  \"parts\": [{\"text\": \"You are a code review assistant. Analyze this request: ${COMMENT}\"}]
+                }
+              ]
+            }")
+
+          echo "Full JSON response:"
+          echo "$RESPONSE_JSON"
+
+          RESPONSE=$(echo "$RESPONSE_JSON" | jq -r '.candidates[0].content.parts[]?.text' | tr '\n' ' ')
+
+          if [ -z "$RESPONSE" ] || [ "$RESPONSE" = "null" ]; then
+            RESPONSE="⚠️ Gemini did not return a valid response. Check your API key or input format."
+          fi
+
+          echo "RESPONSE=$RESPONSE" >> $GITHUB_ENV
+
+      - name: Post response as comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            🤖 **Gemini Review Bot**
+            ---
+            ${{ env.RESPONSE }}
+
