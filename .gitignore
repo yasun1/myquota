@@ -1,2 +1,15 @@
 .gemini/
 gha-creds-*.json
+
+# Virtual environments
+venv/
+__pycache__/
+*.pyc
+
+# pre-commit cache
+.pre-commit/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
