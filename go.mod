@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/golang/glog v1.1.0
-	github.com/onsi/ginkgo v1.16.5
+	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.27.3
 	github.com/openshift-online/ocm-sdk-go v0.1.323
 	github.com/spf13/cobra v1.6.1
